@@ -1,0 +1,177 @@
+---
+title: "STA445 Final Exam"
+author: "Ryan Joel"
+output: pdf_document
+date: "2024-05-06"
+---
+```{r, warning=FALSE}
+library(tidyverse)
+library(readr)
+library(readxl)
+library(ggplot2)
+```
+##Question 1
+I am interested in the average attendance at each World Cup Soccer game dependent on the host country.
+This data is available as WorldCup.xlsx within the Final Exam assignment page.
+
+a. Load the data frame. Be sure to load the correct sheet and skip any uninformative lines.
+```{r}
+WorldCup <- read_excel("WorldCup-1.xlsx", sheet = "worldcup", range= "A3:I29", na = c('na'))%>%
+  drop_na()
+WorldCup
+```
+
+
+b. Clean the data you have loaded to include the following columns: Year, Hosts, Matches,
+Totalattendance, and Averageattendance. You will either need to make your own column names
+or properly clean the strings given for the column names (they contain special characters that should not be retained). Remove commas from numerical values and ensure the Attendance columns are properlyformatted as numerical data. Keep the Year variable as strings. Remove data related to any World Cups that have not occurred and the Overall statistics. Do all cleaning within R. Do not edit the excel file.
+```{r}
+WorldCup2 <- WorldCup%>%
+  select(Year, Hosts, Matches, Totalattendance, Averageattendance) %>%
+  rename("Total Attendance" = Totalattendance, "Average Attendance" = Averageattendance)
+WorldCup2
+```
+
+
+c. Some countries have hosted multiple World Cups. Make unique identifiers for each World Cup by pasting together the Host and Year. Create a new column named worldcup that contains these unique identifiers (i.e. Uruguay1930). Remove any remaining spaces in the worldcup names. Remove the Hosts and Year columns when finished.
+```{r}
+WorldCup2_new <- WorldCup2%>%
+  drop_na()%>%
+  mutate(worldcup = paste(Hosts, Year))%>%
+  mutate(worldcup = str_replace_all(worldcup, " ", ""))%>%
+  select(-Hosts, -Year)
+
+WorldCup2_new
+```
+
+
+d. Display the first ten rows of the data frame using the head command.
+```{r}
+head(WorldCup2_new, 10)
+```
+
+
+e. Display the structure of the data frame.
+```{r}
+str(WorldCup2_new)
+```
+
+
+f. Create a column graph displaying worldcup against the Averageattendance. Arrange the graph such that the bars are ordered by average attendance. Make sure the worldcup identifiers are visible on the graph (i.e. you can read them). Clean up the axes such that they read World Cup Host and Year and Average Attendance.
+```{r}
+
+WorldCupGraph <- ggplot(WorldCup2_new, aes(x = worldcup, y = `Average Attendance`, fill = worldcup)) +
+  geom_bar(stat = "identity") +
+  labs(x = "World Cup Host and Year", y = "Average Attendance") +
+  labs(title = "World Cup Average Attendance by Event")
+WorldCupGraph
+
+```
+##Question 2
+Considering the average attendance at World Cup matches got me thinking about world population. I was able to find an excel file from the United Nations tracking estimated populations for all countries that are part of the UN. This data is available as World_Populations.xlsx within the Final Exam assignment page.
+
+a. Load the data frame the ESTIMATES tab. Be sure to skip any uninformative lines.
+```{r, message=FALSE}
+UNnat <- read_excel("World_Population.xlsx", sheet = "ESTIMATES", range= "A17:BZ306")
+```
+
+
+b. Using regular expressions and tidyverse commands, clean the data to include only population information from 1950 to 2020 for all countries. Remove all extra information regarding regions, subregions, income, etc. Retain only the Country Name and population estimates for years 1950 to 2020. Name this data.frame WorldPopulation. Do all the data cleaning within R. Do not edit the excel file.
+```{r}
+  
+UNnat2 <- UNnat %>%
+  rename("Country" = `Region, subregion, country or area *`) %>%
+  filter(grepl("Country/Area", Type)) %>%
+  pivot_longer(cols = `1950`:`2020`, names_to = "Year", values_to = "Pop") %>% 
+  pivot_wider(names_from = "Year", values_from = "Pop") %>%
+  select(-Notes, -`Country code`, -Type, -`Parent code`)%>%
+  select(-Index, -Variant)
+UNnat2
+```
+
+
+c. Create a single panel graph displaying Year against Population for Brazil, Mexico, and Italy. Use different colors for the three countries. Properly label the axes.
+```{r}
+
+countries <- UNnat2%>%
+  pivot_longer(cols = -Country, names_to = "Year", values_to = "Pop") %>%
+  filter(Country %in% c("Brazil", "Mexico", "Italy"))
+
+ggplot(countries, aes(x = Year, y = Pop, color = Country)) +
+  geom_point() +
+  labs(x = "Year", y = "Population", title = "Estimated Populations of Countries by Year")
+
+
+
+```
+
+d. Apply a theme of your choice to the graph in part c.
+```{r}
+countries <- UNnat2%>%
+  pivot_longer(cols = -Country, names_to = "Year", values_to = "Pop") %>%
+  filter(Country %in% c("Brazil", "Mexico", "Italy"))
+
+ggplot(countries, aes(x = Year, y = Pop, color = Country)) +
+  geom_point() +
+  labs(x = "Year", y = "Population", title = "Estimated Populations of Countries by Year")+
+  theme_minimal(base_size = 18)+
+  theme_light()
+```
+
+##Question 3
+I want to be able to easily graph any of the UN countries given in the Excel file for Question 2. My preference would be to just enter a country name and obtain a graph of the population from 1950 to 2020.
+
+a. Produce a function that is hard coded to use the data.frame produced in Question 2 part b. The function should take as input a country name (as a string) and return the population against year graph for that country. Name this function CountryPopulation.
+Hint: Wrap up what you did Question 2c into a function that returns an object that is a ggplot. Remove any options for color. Add an option for title that uses the string that is input. This should produce a black and white graph with the name of the country at the top.
+```{r}
+
+library(ggplot2)
+
+getpop <- function(country_name) {
+  # Filter data for the specified country
+  country_data <- UNnat2 %>%
+    filter(Country == country_name)
+  
+  # Reshape data for plotting
+  country_data_long <- country_data %>%
+    pivot_longer(cols = `1950`:`2020`, names_to = "Year", values_to = "Pop")
+  
+  # Convert Year to numeric
+  country_data_long$Year <- as.numeric(country_data_long$Year)
+  
+  # Plot population over the years
+  ggplot(country_data_long, aes(x = Year, y = Pop)) +
+    geom_line() +
+    labs(x = "Year", y = "Population", title = paste("Population Trends for", country_name)) +
+    theme_minimal()
+}
+
+
+```
+
+
+b. Produce graphs for United States of America, Russian Federation, China, and United Kingdom
+using your function. You may store these as objects to be used in part c. Display at least one of the four graphs produced.
+```{r}
+getpop("China") #doesn't plot the actual data :(
+```
+
+```{r, include=FALSE}
+getpop("United States of America")
+getpop("United Kingdom")
+getpop("Russian Federation")
+```
+
+c. Using cowplot or ‘patchwork’ combine the four graphs from part b. into a single panel.
+```{r}
+library(cowplot)
+P1 <- getpop("China")
+P2 <- getpop("United States of America")
+P3 <- getpop("Russian Federation")
+P4 <- getpop("United Kingdom")
+
+cowplot::plot_grid(P1, P2, P3, P4)
+```
+
+##Question 4
+Link to GitHub account: 

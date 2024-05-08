@@ -1,0 +1,10 @@
+---
+title: "WorldPopulation"
+output: pdf_document
+date: "2024-05-08"
+---
+```{r}
+library(JoelWorldPopulation)
+getpop("United Kingdom")
+```
+
